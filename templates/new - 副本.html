@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UY-Robot-TTS 在线合成</title>
+    <link rel="stylesheet" href="/static/css/ug.css">
+    <script src="/static/js/ug.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --green: #07c160; --green-dark: #059a4e; --green-glow: rgba(7,193,96,0.35);
+            --red: #ef4444; --orange: #f59e0b;
+            --bg: #0c1814; --card: #ffffff; --card-dark: #f8fafc;
+            --text: #1e293b; --text2: #64748b; --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+            background: linear-gradient(6deg, #0c1814 0%, #16bf74 48%, #19815c 100%);
+            min-height: 100vh; color: var(--text); line-height: 1.6;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 1.5rem; min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* Header */
+        .header { text-align: center; margin-bottom: 1.5rem; }
+        .header h1 { font-size: 1.4rem; color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); margin-bottom: 0.3rem; }
+        .header .sub { color: rgba(255,255,255,0.88); font-size: 1rem; }
+
+        /* Panels */
+        .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
+        @media(max-width:800px){ .panels { grid-template-columns: 1fr; } }
+        .panel { background: var(--card); border-radius: 14px; padding: 1.3rem; box-shadow: var(--shadow-lg); }
+        .panel h2 { font-size: 1.1rem; text-align: center; margin-bottom: 1rem; padding-bottom: 0.6rem; border-bottom: 2px solid var(--border); }
+
+        /* Textarea */
+        .ta-wrap { margin-bottom: 1rem; }
+        .ta-wrap label { display: block; font-weight: 600; margin-bottom: 0.4rem; text-align: right; }
+        .ta-wrap textarea {
+            width: 100%; padding: 0.9rem; border: 2px solid var(--border); border-radius: 10px;
+            font-size: 1rem; resize: vertical; direction: rtl; font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        .ta-wrap textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-glow); }
+        .char-info { text-align: right; color: var(--text2); font-size: 0.8rem; margin-top: 0.3rem; }
+
+        /* Buttons */
+        .btn {
+            padding: 0.8rem 1.4rem; border: none; border-radius: 10px; font-size: 0.95rem;
+            font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex;
+            align-items: center; justify-content: center; gap: 0.5rem; width: 100%;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .btn-green { background: var(--green); color: #fff; box-shadow: 0 6px 20px var(--green-glow); }
+        .btn-green:hover:not(:disabled) { background: var(--green-dark); transform: translateY(-1px); }
+        .btn-orange { background: var(--orange); color: #fff; box-shadow: 0 6px 20px rgba(245,158,11,0.3); }
+        .btn-orange:hover:not(:disabled) { background: #d97706; transform: translateY(-1px); }
+        .btn-red { background: var(--red); color: #fff; }
+        .btn-red:hover:not(:disabled) { background: #dc2626; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--green); color: var(--green); }
+        .btn-row { display: flex; gap: 0.8rem; margin-top: 0.8rem; }
+        .btn-row .btn { flex: 1; }
+
+        /* Pause settings */
+        .pause-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+            padding: 0.7rem 1rem; background: var(--card-dark); border-radius: 10px; margin-bottom: 0.8rem;
+            border: 1px solid var(--border); user-select: none;
+        }
+        .pause-toggle:hover { border-color: var(--green); }
+        .pause-toggle .arrow { transition: transform 0.3s; font-size: 0.8rem; }
+        .pause-toggle .arrow.open { transform: rotate(180deg); }
+        .pause-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; margin-bottom: 1rem;
+            max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s; padding: 0;
+        }
+        .pause-grid.open { max-height: 500px; padding: 0.8rem 0; }
+        .pause-item { display: flex; align-items: center; gap: 0.5rem; }
+        .pause-item .punct { width: 32px; height: 32px; background: #f1f5f9; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: var(--green); flex-shrink: 0;
+        }
+        .pause-item input[type=number] {
+            width: 70px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 0.85rem; text-align: center;
+        }
+        .pause-item input[type=number]:focus { outline: none; border-color: var(--green); }
+        .pause-item .unit { font-size: 0.75rem; color: var(--text2); }
+
+        /* Voice clone params */
+        .param-row { margin-bottom: 0.9rem; }
+        .param-row label { display: block; font-weight: 500; margin-bottom: 0.3rem; text-align: right; font-size: 0.88rem; }
+        .param-row input[type=range] { width: 100%; height: 6px; border-radius: 3px; background: var(--border); -webkit-appearance: none; outline: none; }
+        .param-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--green); cursor: pointer; }
+        .upload-area { display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 1.2rem;
+            border: 2px dashed var(--border); border-radius: 10px; cursor: pointer; color: var(--text2); margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+        .upload-area:hover { border-color: var(--green); color: var(--green); background: rgba(7,193,96,0.03); }
+
+        /* Progress */
+        .stream-box { background: var(--card); border-radius: 14px; padding: 1.3rem; box-shadow: var(--shadow-lg); margin-bottom: 1.2rem; }
+        .progress-bar-wrap { background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden; margin: 0.6rem 0; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--green), #34d399); border-radius: 8px; transition: width 0.4s ease; width: 0%; }
+        .progress-text { font-size: 0.85rem; color: var(--text2); text-align: center; }
+        .segment-text { direction: rtl; text-align: right; font-size: 0.9rem; color: var(--text); padding: 0.5rem 0.8rem;
+            background: #f0fdf4; border-radius: 8px; border-right: 3px solid var(--green); margin-top: 0.5rem; min-height: 2rem;
+        }
+
+        /* Result */
+        .result-box { background: linear-gradient(135deg,#f0fdf4,#ecfdf5); border: 1px solid rgba(16,185,129,0.2);
+            border-radius: 12px; padding: 1.3rem; margin-bottom: 1.2rem;
+        }
+        .result-box h3 { color: var(--green); text-align: center; margin-bottom: 0.8rem; }
+        .result-box audio { width: 100%; height: 44px; border-radius: 8px; margin-bottom: 0.8rem; }
+        .result-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+        .result-actions .btn { flex: 1; min-width: 120px; }
+
+        /* Status messages */
+        .msg-error { padding: 0.8rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 10px; color: var(--red); margin-bottom: 1rem; text-align: center;
+        }
+        .msg-info { padding: 0.8rem; background: rgba(7,193,96,0.08); border: 1px solid rgba(7,193,96,0.2);
+            border-radius: 10px; color: var(--green-dark); margin-bottom: 1rem; text-align: center;
+        }
+
+        /* Loading */
+        .loading-wrap { display: flex; align-items: center; justify-content: center; gap: 0.8rem; padding: 1rem;
+            background: rgba(255,255,255,0.95); border-radius: 10px; margin-bottom: 1rem;
+        }
+        .spinner { width: 22px; height: 22px; border: 3px solid rgba(7,193,96,0.3); border-top-color: var(--green);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .footer { text-align: center; margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.75); font-size: 0.85rem; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <h1>🎙️ UY-TTS ئاقما ئاۋاز بىرىكتۈرۈش 🎙️</h1>
+        <p class="sub">ئۇيغۇرچە ئاۋاز بىرىكتۈرۈش ۋە كىلونلاش سىستېمىسى</p>
+    </header>
+
+    <main>
+        <div class="panels">
+            <!-- ======= 左面板：文本输入 + 停顿设置 ======= -->
+            <div class="panel">
+                <div class="ta-wrap">
+                    <label for="text-input">تېكىسىت كىرگۈزۈڭ</label>
+                    <textarea id="text-input" rows="7" placeholder="بىرىكتۈرمەكچى بولغان تېكىسىتنى كىرگۈزۈڭ..."></textarea>
+                    <div class="char-info"><span id="char-count">0</span> ھەرىپ</div>
+                </div>
+
+                <!-- 标点停顿设置 -->
+                <div class="pause-toggle" id="pause-toggle">
+                    <span style="font-weight:600;">⏱️ تىنىش بەلگىسى ئارىلىق تەڭشىكى</span>
+                    <span class="arrow" id="pause-arrow">▼</span>
+                </div>
+                <div class="pause-grid" id="pause-grid">
+                    <div class="pause-item"><span class="punct">،</span><input type="number" data-punct="،" value="350" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">,</span><input type="number" data-punct="," value="350" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">.</span><input type="number" data-punct="." value="550" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">؟</span><input type="number" data-punct="؟" value="550" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">?</span><input type="number" data-punct="?" value="550" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">!</span><input type="number" data-punct="!" value="550" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">؛</span><input type="number" data-punct="؛" value="450" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">;</span><input type="number" data-punct=";" value="450" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">:</span><input type="number" data-punct=":" value="300" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">…</span><input type="number" data-punct="…" value="600" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                    <div class="pause-item"><span class="punct">↵</span><input type="number" data-punct="\n" value="500" min="0" max="3000" step="50"><span class="unit">ms</span></div>
+                </div>
+
+                <!-- 按钮 -->
+                <div class="btn-row">
+                    <button class="btn btn-green" id="btn-tts">🔊 ئاۋاز بىرىكتۈرۈش</button>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-orange" id="btn-stream">⚡ ئاقما قويۇش (WebSocket)</button>
+                </div>
+            </div>
+
+            <!-- ======= 右面板：变声设置 ======= -->
+            <div class="panel">
+                <h2>ئاۋاز كىلونلاش تەڭشىكى</h2>
+                <label for="audio-upload" class="upload-area">
+                    <span style="font-size:1.3rem;">📁</span>
+                    <span id="file-name">WAV ھۆججەت تاللاڭ</span>
+                </label>
+                <input type="file" id="audio-upload" accept=".wav" hidden>
+
+                <div class="param-row">
+                    <label>ئاۋاز يۇقىرى تۆۋەنلىكى: <strong id="pitch-val">-6</strong></label>
+                    <input type="range" id="pitch" min="-12" max="12" value="-6">
+                </div>
+                <div class="param-row">
+                    <label>ئوخشاشلىق دەرىجىسى: <strong id="idx-val">0.5</strong></label>
+                    <input type="range" id="index-rate" min="0" max="1" step="0.1" value="0.5">
+                </div>
+                <div class="param-row">
+                    <label>قوغداش دەرىجىسى: <strong id="prot-val">0.25</strong></label>
+                    <input type="range" id="protect" min="0" max="0.5" step="0.05" value="0.25">
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-green" id="btn-vc" disabled>🎵 ئاۋاز كىلونلاش</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-wrap hidden" id="loading">
+            <div class="spinner"></div>
+            <span id="loading-text">ئاۋاز ھاسىللاۋاتىدۇ...</span>
+        </div>
+
+        <!-- Error -->
+        <div class="msg-error hidden" id="msg-error"></div>
+
+        <!-- Stream progress -->
+        <div class="stream-box hidden" id="stream-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
+                <button class="btn btn-red" id="btn-stop-stream" style="width:auto;padding:0.4rem 1rem;font-size:0.8rem;">⏹ توختىتىش</button>
+                <span style="font-weight:600;">ئاقما بىرىكتۈرۈش جەريانى</span>
+            </div>
+            <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+            <div class="progress-text" id="progress-text">ساقلاۋاتىدۇ...</div>
+            <div class="segment-text" id="segment-text"></div>
+        </div>
+
+        <!-- Result -->
+        <div class="result-box hidden" id="result-box">
+            <h3>🎉 تاماملاندى 🎉</h3>
+            <audio id="audio-player" controls></audio>
+            <div class="result-actions">
+                <button class="btn btn-green" id="btn-download">⬇️ چۈشۈرۈش</button>
+                <button class="btn btn-outline" id="btn-reset">🔄 قايتا</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>UY-Robot-TTS ئاۋاز بىرىكتۈرۈش سىستېمىسى | Mr.Robot 2026</p>
+    </footer>
+</div>
+
+<script>
+// ===================== DOM =====================
+const $ = id => document.getElementById(id);
+const textInput    = $('text-input');
+const charCount    = $('char-count');
+const btnTts       = $('btn-tts');
+const btnStream    = $('btn-stream');
+const btnVc        = $('btn-vc');
+const btnDownload  = $('btn-download');
+const btnReset     = $('btn-reset');
+const btnStopStream= $('btn-stop-stream');
+const audioUpload  = $('audio-upload');
+const fileNameEl   = $('file-name');
+const loadingEl    = $('loading');
+const loadingText  = $('loading-text');
+const msgError     = $('msg-error');
+const streamBox    = $('stream-box');
+const progressBar  = $('progress-bar');
+const progressText = $('progress-text');
+const segmentText  = $('segment-text');
+const resultBox    = $('result-box');
+const audioPlayer  = $('audio-player');
+const pitchSlider  = $('pitch');
+const idxSlider    = $('index-rate');
+const protSlider   = $('protect');
+
+let currentAudioUrl = null;
+let currentFilename = null;
+let selectedFile    = null;
+let ws              = null;
+
+// ===================== 停顿面板折叠 =====================
+const pauseToggle = $('pause-toggle');
+const pauseGrid   = $('pause-grid');
+const pauseArrow  = $('pause-arrow');
+pauseToggle.addEventListener('click', () => {
+    pauseGrid.classList.toggle('open');
+    pauseArrow.classList.toggle('open');
+});
+
+// ===================== 收集停顿配置 =====================
+function getPauseConfig() {
+    const pauses = {};
+    pauseGrid.querySelectorAll('input[data-punct]').forEach(inp => {
+        pauses[inp.dataset.punct] = parseInt(inp.value) || 0;
+    });
+    return pauses;
+}
+
+// ===================== 事件绑定 =====================
+textInput.addEventListener('input', () => {
+    charCount.textContent = textInput.value.length;
+    updateVcBtn();
+});
+
+pitchSlider.addEventListener('input', () => $('pitch-val').textContent = pitchSlider.value);
+idxSlider.addEventListener('input',  () => $('idx-val').textContent = idxSlider.value);
+protSlider.addEventListener('input', () => $('prot-val').textContent = protSlider.value);
+
+audioUpload.addEventListener('change', e => {
+    if (e.target.files.length > 0) { selectedFile = e.target.files[0]; fileNameEl.textContent = selectedFile.name; }
+    updateVcBtn();
+});
+document.querySelector('.upload-area').addEventListener('click', () => audioUpload.click());
+
+btnTts.addEventListener('click', handleTtsLong);
+btnStream.addEventListener('click', handleStream);
+btnVc.addEventListener('click', handleVoiceChange);
+btnDownload.addEventListener('click', handleDownload);
+btnReset.addEventListener('click', handleReset);
+btnStopStream.addEventListener('click', stopStream);
+
+function updateVcBtn() {
+    btnVc.disabled = !(textInput.value.trim() || selectedFile);
+}
+
+// ===================== UI helpers =====================
+function showLoading(msg)  { loadingText.textContent = msg; loadingEl.classList.remove('hidden'); }
+function hideLoading()     { loadingEl.classList.add('hidden'); }
+function showError(msg)    { msgError.textContent = msg; msgError.classList.remove('hidden'); }
+function hideError()       { msgError.classList.add('hidden'); }
+function showResult()      { resultBox.classList.remove('hidden'); }
+function hideResult()      { resultBox.classList.add('hidden'); }
+function showStream()      { streamBox.classList.remove('hidden'); }
+function hideStream()      { streamBox.classList.add('hidden'); }
+function disableBtns(v)    { btnTts.disabled = v; btnStream.disabled = v; btnVc.disabled = v; }
+
+// ===================== 普通长文本合成 (REST) =====================
+async function handleTtsLong() {
+    const text = textInput.value.trim();
+    if (!text) { showError('تېكىسىت كىرگۈزۈڭ'); return; }
+
+    hideError(); hideResult(); hideStream();
+    showLoading('ئاۋاز بىرىكتۈرۈلۈۋاتىدۇ...');
+    disableBtns(true);
+
+    try {
+        const fd = new FormData();
+        fd.append('text', text);
+        fd.append('pauses', JSON.stringify(getPauseConfig()));
+
+        const resp = await fetch('/api/tts-long', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'مەغلۇپ بولدى');
+
+        currentAudioUrl = data.audio_url;
+        currentFilename = data.filename;
+        audioPlayer.src = currentAudioUrl;
+        showResult();
+    } catch (e) {
+        showError(e.message || 'خاتالىق يۈز بەردى');
+    } finally {
+        hideLoading();
+        disableBtns(false);
+        updateVcBtn();
+    }
+}
+
+// ===================== WebSocket 流式合成 + 队列播放 =====================
+
+class AudioPlaybackQueue {
+    constructor() {
+        this.ctx = null;
+        this.queue = [];
+        this.isPlaying = false;
+        this.scheduledEnd = 0;
+        this.onSegmentPlay = null;
+        this.currentIndex = 0;
+        this.stopped = false;
+    }
+
+    init() {
+        if (!this.ctx || this.ctx.state === 'closed') {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.queue = [];
+        this.isPlaying = false;
+        this.scheduledEnd = 0;
+        this.currentIndex = 0;
+        this.stopped = false;
+    }
+
+    async addChunk(wavArrayBuffer, index) {
+        if (this.stopped) return;
+        try {
+            const audioBuf = await this.ctx.decodeAudioData(wavArrayBuffer.slice(0));
+            this.queue.push({ buffer: audioBuf, index });
+            if (!this.isPlaying) this._playNext();
+        } catch (e) {
+            console.error('解码音频失败:', e);
+        }
+    }
+
+    _playNext() {
+        if (this.stopped || this.queue.length === 0) {
+            this.isPlaying = false;
+            return;
+        }
+        this.isPlaying = true;
+        const { buffer, index } = this.queue.shift();
+        this.currentIndex = index;
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.ctx.destination);
+
+        const startAt = Math.max(this.ctx.currentTime, this.scheduledEnd);
+        source.start(startAt);
+        this.scheduledEnd = startAt + buffer.duration;
+
+        if (this.onSegmentPlay) this.onSegmentPlay(index);
+
+        source.onended = () => this._playNext();
+    }
+
+    stop() {
+        this.stopped = true;
+        this.queue = [];
+        this.isPlaying = false;
+        if (this.ctx && this.ctx.state !== 'closed') {
+            this.ctx.close().catch(() => {});
+        }
+    }
+}
+
+const playQueue = new AudioPlaybackQueue();
+let streamSegmentIndex = 0;
+
+async function handleStream() {
+    const text = textInput.value.trim();
+    if (!text) { showError('تېكىسىت كىرگۈزۈڭ'); return; }
+
+    hideError(); hideResult();
+    disableBtns(true);
+    showStream();
+    progressBar.style.width = '0%';
+    progressText.textContent = 'باغلىنىۋاتىدۇ...';
+    segmentText.textContent = '';
+
+    playQueue.init();
+    playQueue.onSegmentPlay = idx => {
+        segmentText.style.borderRightColor = '#34d399';
+    };
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/ws/tts-stream`);
+
+    let totalSegments = 0;
+    let receivedCount = 0;
+    let allWavChunks = [];
+
+    ws.onopen = () => {
+        const config = { text, pauses: getPauseConfig() };
+        ws.send(JSON.stringify(config));
+        progressText.textContent = 'بىرىكتۈرۈش باشلاندى...';
+    };
+
+    ws.onmessage = async (event) => {
+        if (typeof event.data === 'string') {
+            const msg = JSON.parse(event.data);
+
+            if (msg.type === 'start') {
+                totalSegments = msg.total;
+                progressText.textContent = `جەمئى ${totalSegments} بۆلەك`;
+            }
+            else if (msg.type === 'progress') {
+                streamSegmentIndex = msg.index;
+                const pct = Math.round((msg.index / totalSegments) * 100);
+                progressBar.style.width = pct + '%';
+                progressText.textContent = `بىرىكتۈرۈلۈۋاتىدۇ ${msg.index + 1}/${totalSegments}`;
+                segmentText.textContent = msg.text;
+            }
+            else if (msg.type === 'done') {
+                progressBar.style.width = '100%';
+                progressText.textContent = `تامام! ${totalSegments} بۆلەك بىرىكتۈرۈلدى`;
+
+                if (allWavChunks.length > 0) {
+                    buildCombinedAudio(allWavChunks);
+                }
+                ws.close();
+                ws = null;
+                disableBtns(false);
+                updateVcBtn();
+            }
+            else if (msg.type === 'error') {
+                showError(msg.message);
+                hideStream();
+                ws.close();
+                ws = null;
+                disableBtns(false);
+                updateVcBtn();
+            }
+        } else {
+            // Binary WAV chunk
+            const arrayBuf = await event.data.arrayBuffer();
+            allWavChunks.push(new Uint8Array(arrayBuf));
+            receivedCount++;
+            await playQueue.addChunk(arrayBuf, receivedCount - 1);
+        }
+    };
+
+    ws.onerror = () => {
+        showError('WebSocket باغلىنىش خاتالىقى');
+        hideStream();
+        disableBtns(false);
+        updateVcBtn();
+    };
+
+    ws.onclose = () => {
+        if (totalSegments === 0) {
+            hideStream();
+            disableBtns(false);
+            updateVcBtn();
+        }
+    };
+}
+
+function buildCombinedAudio(chunks) {
+    let totalLen = 0;
+    const dataArrays = chunks.map(chunk => {
+        // WAV header is 44 bytes, skip it for all but first
+        return chunk;
+    });
+    // Create a blob from all WAV chunks for download
+    // For simplicity, use the last approach: combine by re-encoding not needed,
+    // just offer individual playback via AudioContext. For download, POST to /api/tts-long.
+    // We already have queue playback working, so just show the result box for download option.
+    resultBox.classList.remove('hidden');
+    // The audio player won't work with chunked data easily, so offer the REST download
+    audioPlayer.style.display = 'none';
+    btnDownload.textContent = '⬇️ تولۇق ھۆججەتنى چۈشۈرۈش';
+    btnDownload.onclick = async () => {
+        showLoading('تولۇق ھۆججەت ھاسىللاۋاتىدۇ...');
+        try {
+            const fd = new FormData();
+            fd.append('text', textInput.value.trim());
+            fd.append('pauses', JSON.stringify(getPauseConfig()));
+            const resp = await fetch('/api/tts-long', { method: 'POST', body: fd });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.detail);
+            const a = document.createElement('a');
+            a.href = data.audio_url;
+            a.download = data.filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        } catch(e) {
+            showError(e.message);
+        } finally {
+            hideLoading();
+        }
+    };
+}
+
+function stopStream() {
+    playQueue.stop();
+    if (ws) { ws.close(); ws = null; }
+    hideStream();
+    disableBtns(false);
+    updateVcBtn();
+}
+
+// ===================== 变声 =====================
+async function handleVoiceChange() {
+    const text = textInput.value.trim();
+    if (!text && !selectedFile) { showError('تېكىسىت ياكى ئاۋاز تاللاڭ'); return; }
+
+    hideError(); hideResult(); hideStream();
+    showLoading('ئاۋاز كىلونلاۋاتىدۇ...');
+    disableBtns(true);
+
+    try {
+        const fd = new FormData();
+        if (selectedFile) { fd.append('file', selectedFile); }
+        else { fd.append('text', text); }
+        fd.append('pitch', pitchSlider.value);
+        fd.append('index_rate', idxSlider.value);
+        fd.append('protect', protSlider.value);
+        fd.append('rms_mix_rate', '0.25');
+
+        const resp = await fetch('/api/tts-and-voice-change', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'مەغلۇپ بولدى');
+
+        currentAudioUrl = data.audio_url;
+        currentFilename = data.filename;
+        audioPlayer.style.display = '';
+        audioPlayer.src = currentAudioUrl;
+        btnDownload.textContent = '⬇️ چۈشۈرۈش';
+        btnDownload.onclick = handleDownload;
+        showResult();
+    } catch (e) {
+        showError(e.message);
+    } finally {
+        hideLoading();
+        disableBtns(false);
+        updateVcBtn();
+    }
+}
+
+// ===================== 下载 / 重置 =====================
+function handleDownload() {
+    if (!currentAudioUrl) return;
+    const a = document.createElement('a');
+    a.href = currentAudioUrl; a.download = currentFilename || 'output.wav';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function handleReset() {
+    stopStream();
+    textInput.value = ''; charCount.textContent = '0';
+    audioUpload.value = ''; fileNameEl.textContent = 'WAV ھۆججەت تاللاڭ'; selectedFile = null;
+    pitchSlider.value = -6; $('pitch-val').textContent = '-6';
+    idxSlider.value = 0.5; $('idx-val').textContent = '0.5';
+    protSlider.value = 0.25; $('prot-val').textContent = '0.25';
+    hideResult(); hideError(); hideStream();
+    audioPlayer.style.display = ''; audioPlayer.src = '';
+    btnDownload.textContent = '⬇️ چۈشۈرۈش'; btnDownload.onclick = handleDownload;
+    currentAudioUrl = null; currentFilename = null;
+    updateVcBtn();
+}
+</script>
+</body>
+</html>

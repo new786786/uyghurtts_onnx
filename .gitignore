@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+.idea/
+.cache/
+.gradle/
+local.properties
+temp/
+split_models.py
+
+# Android 构建产物
+android_tts/app/build/
+android_tts/app/release/
+android_tts/.gradle/
+android_tts/.idea/
+android_tts/app/src/main/assets/tts/model.onnx
+
+# 原始大文件（用分片替代）
+vec-768-layer-12.onnx
+22k_hawagul.onnx
+clone_onnx/1.onnx
+clone_onnx/added_1_onnx_v2.index
+clone_onnx/2.onnx
+clone_onnx/added_2_onnx_v2.index
+tts_onnx/model.onnx
+tts_onnx/hawahan.onnx
+tts_onnx/xjsdn.onnx

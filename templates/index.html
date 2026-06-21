@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UY-Robot-TTS 在线合成</title>
+      <link rel="stylesheet" href="/static/css/style.css">
+      <link rel="stylesheet" href="/static/css/ug.css">
+      <script src="static/js/ug.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎙️ UY-Robot-TTS 在线合成 🎙️ </h1>
+            <p class="subtitle">维吾尔语语音合成与克隆系统</p>
+            <p class="subtitle">ئاۋاز بىرىكتۇرۇش ۋە كىلونلاش سېستىمسى</p>
+        </header>
+
+        <main class="main-content">
+            <div class="panels-wrapper">
+                <!-- TTS合成面板 -->
+                <div class="panel synthesize-panel">
+                    <div class="input-section">
+                        <label for="text-input">تېكىسىت كىرگۈزۇڭ</label>
+                        <textarea 
+                            id="text-input" 
+                            placeholder="بىرىكتۇرمەكچى بولغان تېكىسنى كىرگۈزۇڭ،مەسلەن ئالىم بولساڭ سېنىڭكى."
+                            rows="6"
+                        ></textarea>
+                        <div class="text-info">
+                            <span id="char-count">0</span> ھەرىپ
+                        </div>
+                    </div>
+                    <div class="control-section">
+                        <button id="synthesize-btn" class="btn btn-primary">
+                            <span class="btn-icon">🔊</span>
+                            ئاۋاز بىرىكتۇرۇش
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 变声面板 -->
+                <div class="panel voice-change-panel">
+                    <div class="panel-header">
+                        <h2>ئاۋاز كىلونلاش تەڭشىكى</h2>
+                    </div>
+                    <div class="upload-section">
+                        <label for="audio-upload" class="upload-label">
+                            <span class="upload-icon">📁</span>
+                            <span id="file-name">选择音频文件 (WAV)</span>
+                        </label>
+                        <input type="file" id="audio-upload" accept=".wav" hidden>
+                    </div>
+                    <div class="params-section">
+                        <div class="param-row">
+                            <label for="pitch">ئاۋاز يۇقرى تۆۋەنلىكى: <span id="pitch-value">-6</span></label>
+                            <input type="range" id="pitch" min="-12" max="12" value="-6">
+                        </div>
+                        <div class="param-row">
+                            <label for="index-rate">ئاۋاز تۈسى ئوخشاشلىق دەرىجىسى: <span id="index-rate-value">0.5</span></label>
+                            <input type="range" id="index-rate" min="0" max="1" step="0.1" value="0.5">
+                        </div>
+                        <div class="param-row">
+                            <label for="protect">ئاۋاز قوشۇمچە تەڭشىكى: <span id="protect-value">0.25</span></label>
+                            <input type="range" id="protect" min="0" max="0.5" step="0.05" value="0.25">
+                        </div>
+                    </div>
+                    <div class="control-section">
+                        <button id="voice-change-btn" class="btn btn-purple" disabled>
+                            <span class="btn-icon">🎵</span>
+                            ئاۋاز كىلونلاش
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <span id="loading-text">ئاۋاز ھاسىللاۋاتىدۇ سەل ساقلاڭ...</span>
+            </div>
+
+            <div id="error-message" class="error-message hidden"></div>
+
+            <div id="result-section" class="result-section hidden">
+                <h3>🎉تامام🎉</h3>
+                <div class="audio-player">
+                    <audio id="audio-player" controls></audio>
+                </div>
+                <div class="result-info" id="result-info"></div>
+                <div class="result-actions">
+                    <button id="download-btn" class="btn btn-secondary">
+                        ⬇️ چۇشۇرۇش
+                    </button>
+                    <button id="reset-btn" class="btn btn-outline">
+                        🔄 قايتا ھاسىللاش
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p style="font-size: 17px;">UY-Robot-TTS 语音合成系统 | 基于深度学习的文本转语音 Mr.Robot 2026</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
